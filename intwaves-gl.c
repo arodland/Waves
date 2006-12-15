@@ -15,6 +15,9 @@
 #define WIDTH (512)
 #define HEIGHT (512)
 
+#define TWOLOOP 0 
+
+
 struct Vertex {
     float tu, tv;
     float x, y, z;
@@ -42,12 +45,16 @@ int MODE = 1;
 
 
 
-int *data, *v_x, *v_y;
+int *data, *v_x, *v_y,*new;
 
 SDL_Surface *screen;
 
 void init_data () {
 	if ((data = malloc(WIDTH * HEIGHT * sizeof(*data))) == NULL) {
+		perror("Allocating data");
+		abort();
+	}
+  if ((new = malloc(WIDTH * HEIGHT * sizeof(*data))) == NULL) {
 		perror("Allocating data");
 		abort();
 	}
@@ -72,8 +79,8 @@ void init_data () {
 }
 
 void update () {
-//	memcpy(new, data, WIDTH * HEIGHT * sizeof(*data));
-
+	
+#if TWOLOOP
 	for (int y = 0 ; y < HEIGHT ; y++) {
 		for (int x = 0 ; x < WIDTH ; x++) {
 			int row = WIDTH * y;
@@ -126,8 +133,10 @@ void update () {
 			data[north] -= v_y[cur]; data[south] += v_y[cur];
 		}
 	}
-
-#if 0
+#endif
+  
+#if ! TOOLOOP
+ memcpy(new, data, WIDTH * HEIGHT * sizeof(*data));
 	for (int y = 0 ; y < HEIGHT ; y++) {
 		for (int x = 0 ; x < WIDTH ; x++) {
 			int row = WIDTH * y;
