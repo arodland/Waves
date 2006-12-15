@@ -42,20 +42,13 @@ int MODE = 1;
 
 
 
-/*GLint *data, *new;
-int *v_x, *v_y; */
-int *data, *new, *v_x, *v_y;
+int *data, *v_x, *v_y;
 
 SDL_Surface *screen;
 
 void init_data () {
 	if ((data = malloc(WIDTH * HEIGHT * sizeof(*data))) == NULL) {
 		perror("Allocating data");
-		abort();
-	}
-
-	if ((new = malloc(WIDTH * HEIGHT * sizeof(*new))) == NULL) {
-		perror("Allocating new");
 		abort();
 	}
 
