@@ -100,13 +100,13 @@ void update () {
 				v_x[cur] += (data[west] - data[east]) >> TRANSFER;
 				if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
 				if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
-//	    		v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
+    		//v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
 
 
 				v_y[cur] += (data[north] - data[south]) >> TRANSFER;
 				if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
 				if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
-//    			v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
+   			//v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
 			}
 
 		}
@@ -500,13 +500,32 @@ int main (int argc, char *argv[]) {
 			}
 		}
 		if (RAIN && ((rand() % 100) < RAIN)) {
-			int rainx = 1 + rand() % (WIDTH - 2);
-			int rainy = 1 + rand() % (HEIGHT - 2);
-			for (int j = rainy - 1 ; j <= rainy + 1 ; j++) {
-				for (int k = rainx - 1 ; k <= rainx + 1 ; k++) {
-					data[WIDTH * j + k] = 255 * 256;
+			int x = 1 + rand() % (WIDTH - 2);
+			int y = 1 + rand() % (HEIGHT - 2);
+			
+      for (int j = y - brushsize ; j < y + brushsize ; j++) {
+				if (j < 0 || j >= HEIGHT) continue;
+				for (int k = x - brushsize ; k < x + brushsize ; k++) {
+					if (k < 0 || k >= WIDTH) continue;
+					float disty = sqrt( ((k-x)*(k-x)) + ((j-y)*(j-y)) ) ;
+					float ity = 1 ;
+					if (BRUSHTYPE == 1)
+					{
+						if (disty>(brushsize) ) continue ;
+					}
+
+					if (BRUSHSOFT ==1)
+					{
+						ity = 1-(disty/brushsize);
+					}
+          if (BRUSHADD==1)
+						{ data[WIDTH * j + k]  += (256 * 256 *ity) ;}
+          else
+						{data[WIDTH * j + k]  = (256 * 256 *ity) ;}
+					if (data[WIDTH * j + k] <0 ||data[WIDTH * j + k] > (256*256) ) 
+            { data[WIDTH * j + k] = (256*256);}
 				}
-			}
+			}      
 		}
 	}
 	return 0;
