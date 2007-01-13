@@ -9,11 +9,11 @@
 #include "colors.i"
 
 
-#define SCR_WIDTH (1024)
-#define SCR_HEIGHT (768)
+#define SCR_WIDTH (640)
+#define SCR_HEIGHT (480)
 
-#define WIDTH (512)
-#define HEIGHT (512)
+#define WIDTH (640)
+#define HEIGHT (480)
 
 #define TWOLOOP 1
 
@@ -33,7 +33,7 @@ struct Vertex quad_vertices[] = {
 GLuint tex = 0;
 
 int VEL_LIMIT = 15 * 256;
-int TRANSFER = 3;
+const int TRANSFER = 8;
 int DRAG = 0;
 int RAIN = 0;
 int NONLINEAR = 0;
@@ -92,26 +92,26 @@ void update () {
 
             if (NONLINEAR) {
                 if (data[west] > data[east]) {
-                    v_x[cur] -= ((data[west] - data[east]) * (v_x[cur] - VEL_LIMIT) / VEL_LIMIT) >> TRANSFER;
+                    v_x[cur] -= ((data[west] - data[east]) * (v_x[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
                 } else {
-                    v_x[cur] += ((data[west] - data[east]) * (v_x[cur] + VEL_LIMIT) / VEL_LIMIT) >> TRANSFER;
+                    v_x[cur] += ((data[west] - data[east]) * (v_x[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
                 }
 
                 if (data[north] > data[south]) {
-                    v_y[cur] -= ((data[north] - data[south]) * (v_y[cur] - VEL_LIMIT) / VEL_LIMIT) >> TRANSFER;
+                    v_y[cur] -= ((data[north] - data[south]) * (v_y[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
                 } else {
-                    v_y[cur] += ((data[north] - data[south]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) >> TRANSFER;
+                    v_y[cur] += ((data[north] - data[south]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
                 }
             } else {
-                v_x[cur] += (data[west] - data[east]) >> TRANSFER;
-                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
-                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
+                v_x[cur] += (data[west] - data[east]) / TRANSFER;
+//                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
+//                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
                 //v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
 
 
-                v_y[cur] += (data[north] - data[south]) >> TRANSFER;
-                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
-                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
+                v_y[cur] += (data[north] - data[south]) / TRANSFER;
+//                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
+//                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
                 //v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
             }
 
@@ -137,21 +137,18 @@ void update () {
     for (int y = 0 ; y < HEIGHT ; y++) {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
-            int north = (y == 0 ? cur + WIDTH : cur - WIDTH);
-            int south = (y == HEIGHT - 1 ? cur - WIDTH : cur + WIDTH);
-            int west = (x == 0 ? cur + 1 : cur - 1);
-            int east = (x == WIDTH - 1 ? cur - 1 : cur + 1);
+            int north = ((y == 0) ? cur + WIDTH : cur - WIDTH);
+            int south = ((y == HEIGHT - 1) ? cur - WIDTH : cur + WIDTH);
+            int west = ((x == 0) ? cur + 1 : cur - 1);
+            int east = ((x == WIDTH - 1) ? cur - 1 : cur + 1);
 
-            int curdata = data[cur];
-
-
-            v_x[cur] += (data[west] - data[east]) >> TRANSFER;
+            v_x[cur] += (data[west] - data[east]) / TRANSFER;
             //v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
             // if (v_x[cur] < 0) v_x[cur] = 0; 
             // if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
             new[west] -= v_x[cur]; new[east] += v_x[cur];
 
-            v_y[cur] += (data[north] - data[south]) >> TRANSFER;
+            v_y[cur] += (data[north] - data[south]) / TRANSFER;
             //v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
 
             // if (v_y[cur] < 0 ) v_y[cur] = 0;
@@ -347,10 +344,18 @@ int main (int argc, char *argv[]) {
                     break;
                 case SDL_KEYDOWN:
                     switch(e.key.keysym.sym) {
-                        case SDLK_MINUS:
+/*                        case SDLK_MINUS:
                             TRANSFER -= 1;
                             status("Viscosity: %d", TRANSFER);
-                            break;
+                            break; */
+/*                        case SDLK_EQUALS:
+                            TRANSFER += 1;
+                            status("Viscosity: %d", TRANSFER);
+                            break; */
+/*                        case SDLK_z:
+                            TRANSFER *= -1;
+                            status("Viscosity: %d", TRANSFER);
+                            break; */
                         case SDLK_t:
                             BRUSHTYPE = !BRUSHTYPE ;
                             status("Brushtype: %d", BRUSHTYPE);
@@ -364,14 +369,6 @@ int main (int argc, char *argv[]) {
                             BRUSHADD = !BRUSHADD ;
                             status("BrushAdd: %d", BRUSHADD);
                             break;              
-                        case SDLK_EQUALS:
-                            TRANSFER += 1;
-                            status("Viscosity: %d", TRANSFER);
-                            break;
-                        case SDLK_z:
-                            TRANSFER *= -1;
-                            status("Viscosity: %d", TRANSFER);
-                            break;
                         case SDLK_f:
                             fps = 1 - fps;
                             status("FPS: %s", fps?"on":"off")

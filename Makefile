@@ -1,6 +1,6 @@
 PROG   = intwaves-gl
 
-OPTIMIZE ?= -O3 -march=nocona
+OPTIMIZE ?= -O3 -march=athlon64
 DEBUG    ?=
 WARN     ?=
 
