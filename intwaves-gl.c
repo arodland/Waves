@@ -3,17 +3,24 @@
 #include <math.h>
 #include <sys/time.h>
 #include <time.h>
+
+#ifdef __WIN32__
+#include <SDL.h>
+#include <SDL_opengl.h>
+#include <windows.h>
+#else
 #include <SDL/SDL.h>
 #include <SDL/SDL_opengl.h>
+#endif
 
 #include "colors.i"
 
 
-#define SCR_WIDTH (1280)
-#define SCR_HEIGHT (768)
+#define SCR_WIDTH (1024)
+#define SCR_HEIGHT (960)
 
-#define WIDTH (960)
-#define HEIGHT (540)
+#define WIDTH (512)
+#define HEIGHT (512)
 
 #define TWOLOOP 1
 
@@ -320,6 +327,7 @@ int main (int argc, char *argv[]) {
 
 
         draw();
+#ifndef __WIN32__
         if (fps) {
             struct timeval tv;
             frames++;
@@ -330,6 +338,7 @@ int main (int argc, char *argv[]) {
                 frames = 0;
             }
         }
+#endif
 
 
         while (SDL_PollEvent(&e)) {
@@ -529,4 +538,9 @@ int main (int argc, char *argv[]) {
     return 0;
 }
 
-
+#ifdef __WIN32__
+int WINAPI WinMain (HINSTANCE hThisInstance, HINSTANCE hPrevInstance, LPSTR lpszArgument,
+                    int nFunsterStil) {
+                    return main(0, NULL);
+}
+#endif
