@@ -16,8 +16,8 @@
 #include "colors.i"
 
 
-#define SCR_WIDTH (1024)
-#define SCR_HEIGHT (960)
+#define SCR_WIDTH (512)
+#define SCR_HEIGHT (512)
 
 #define WIDTH (512)
 #define HEIGHT (512)
@@ -49,13 +49,9 @@ int BRUSHTYPE = 1;
 int BRUSHSOFT = 1;
 int BRUSHADD = 1;
 int MODE = 1;
+int WRAP = 0;
 
-struct {
-	int w;
-	int e;
-	int n;
-	int s;
-} *dir;
+
 
 int *data, *v_x, *v_y,*new;
 
@@ -81,22 +77,11 @@ void init_data () {
         abort();
     }
 
-	if ((dir = malloc(WIDTH * HEIGHT * sizeof(*dir))) == NULL) {
-		perror("Allocating dir");
-		abort();
-	}
-
     for (int y = 0 ; y < HEIGHT ; y++) {
         for (int x = 0 ; x < WIDTH ; x++) {
-			int cur = WIDTH * y + x;
-            data[cur] = 128 * 256;
-            v_x[cur] = 0;
-            v_y[cur] = 0;
-
-			dir[cur].n = (y == 0 ? cur + WIDTH : cur - WIDTH);
-			dir[cur].s = (y == HEIGHT - 1 ? cur - WIDTH : cur + WIDTH);
-			dir[cur].w = (x == 0 ? cur + 1 : cur - 1);
-			dir[cur].e = (x == WIDTH - 1 ? cur - 1 : cur + 1);
+            data[y * WIDTH + x] = 16 * 256;
+            v_x[y * WIDTH + x] = 0;
+            v_y[y * WIDTH + x] = 0;
         }
     }
 }
@@ -108,26 +93,39 @@ void update () {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
 
+            int north, south, west, east;
+            if (WRAP) {
+              north = (y == 0 ? (HEIGHT - 1) * WIDTH + x : cur - WIDTH);
+              south = (y == HEIGHT - 1 ? x : cur + WIDTH);
+              west = (x == 0 ? WIDTH * y + WIDTH - 1 : cur - 1);
+              east = (x == WIDTH - 1 ? WIDTH * y : cur + 1);
+            } else {
+              north = (y == 0 ? cur + WIDTH : cur - WIDTH);
+              south = (y == HEIGHT - 1 ? cur - WIDTH : cur + WIDTH);
+              west = (x == 0 ? cur + 1 : cur - 1);
+              east = (x == WIDTH - 1 ? cur - 1 : cur + 1);
+            }
+
             if (NONLINEAR) {
-                if (data[dir[cur].w] > data[dir[cur].e]) {
-                    v_x[cur] -= ((data[dir[cur].w] - data[dir[cur].e]) * (v_x[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+                if (data[west] > data[east]) {
+                    v_x[cur] -= ((data[west] - data[east]) * (v_x[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
                 } else {
-                    v_x[cur] += ((data[dir[cur].w] - data[dir[cur].e]) * (v_x[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+                    v_x[cur] += ((data[west] - data[east]) * (v_x[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
                 }
 
-                if (data[dir[cur].n] > data[dir[cur].s]) {
-                    v_y[cur] -= ((data[dir[cur].n] - data[dir[cur].s]) * (v_y[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+                if (data[north] > data[south]) {
+                    v_y[cur] -= ((data[north] - data[south]) * (v_y[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
                 } else {
-                    v_y[cur] += ((data[dir[cur].n] - data[dir[cur].s]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+                    v_y[cur] += ((data[north] - data[south]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
                 }
             } else {
-                v_x[cur] += (data[dir[cur].w] - data[dir[cur].e]) / TRANSFER;
+                v_x[cur] += (data[west] - data[east]) / TRANSFER;
 //                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
 //                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
                 //v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
 
 
-                v_y[cur] += (data[dir[cur].n] - data[dir[cur].s]) / TRANSFER;
+                v_y[cur] += (data[north] - data[south]) / TRANSFER;
 //                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
 //                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
                 //v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
@@ -140,8 +138,21 @@ void update () {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
 
-            data[dir[cur].w] -= v_x[cur]; data[dir[cur].e] += v_x[cur];
-            data[dir[cur].n] -= v_y[cur]; data[dir[cur].s] += v_y[cur];
+            int north, south, west, east;
+            if (WRAP) {
+              north = (y == 0 ? (HEIGHT - 1) * WIDTH + x : cur - WIDTH);
+              south = (y == HEIGHT - 1 ? x : cur + WIDTH);
+              west = (x == 0 ? WIDTH * y + WIDTH - 1 : cur - 1);
+              east = (x == WIDTH - 1 ? WIDTH * y : cur + 1);
+            } else {
+              north = (y == 0 ? cur + WIDTH : cur - WIDTH);
+              south = (y == HEIGHT - 1 ? cur - WIDTH : cur + WIDTH);
+              west = (x == 0 ? cur + 1 : cur - 1);
+              east = (x == WIDTH - 1 ? cur - 1 : cur + 1);
+            }
+
+            data[west] -= v_x[cur]; data[east] += v_x[cur];
+            data[north] -= v_y[cur]; data[south] += v_y[cur];
         }
     }
 #else
@@ -150,19 +161,23 @@ void update () {
     for (int y = 0 ; y < HEIGHT ; y++) {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
+            int north = ((y == 0) ? cur + WIDTH : cur - WIDTH);
+            int south = ((y == HEIGHT - 1) ? cur - WIDTH : cur + WIDTH);
+            int west = ((x == 0) ? cur + 1 : cur - 1);
+            int east = ((x == WIDTH - 1) ? cur - 1 : cur + 1);
 
-            v_x[cur] += (data[dir[cur].w] - data[dir[cur].e]) / TRANSFER;
+            v_x[cur] += (data[west] - data[east]) / TRANSFER;
             //v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
             // if (v_x[cur] < 0) v_x[cur] = 0; 
             // if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
-            new[dir[cur].w] -= v_x[cur]; new[dir[cur].e] += v_x[cur];
+            new[west] -= v_x[cur]; new[east] += v_x[cur];
 
-            v_y[cur] += (data[dir[cur].n] - data[dir[cur].s]) / TRANSFER;
+            v_y[cur] += (data[north] - data[south]) / TRANSFER;
             //v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
 
             // if (v_y[cur] < 0 ) v_y[cur] = 0;
             // if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
-            new[dir[cur].n] -= v_y[cur]; new[dir[cur].s] += v_y[cur];
+            new[north] -= v_y[cur]; new[south] += v_y[cur];
         }
     }
 
@@ -391,6 +406,10 @@ int main (int argc, char *argv[]) {
                         case SDLK_QUOTE:
                             VEL_LIMIT = 5 * VEL_LIMIT / 4 ;
                             status("VLimit: %d", VEL_LIMIT);
+                            break;
+                        case SDLK_w:
+                            WRAP = 1 - WRAP;
+                            status("Wrap: %d", WRAP);
                             break;
                         case SDLK_i:
                             invert();
