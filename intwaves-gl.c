@@ -16,11 +16,8 @@
 #include "colors.i"
 
 
-#define SCR_WIDTH (512)
-#define SCR_HEIGHT (512)
-
-#define WIDTH (512)
-#define HEIGHT (512)
+#define WIDTH (640)
+#define HEIGHT (360)
 
 #define TWOLOOP 1
 
@@ -218,11 +215,8 @@ void draw() {
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexImage2D(GL_TEXTURE_2D, 0, 3, WIDTH, HEIGHT, 0, GL_COLOR_INDEX, GL_INT, data);
 
-    glMatrixMode( GL_MODELVIEW );
-    glLoadIdentity();
     glInterleavedArrays( GL_T2F_V3F, 0, quad_vertices );
     glDrawArrays( GL_QUADS, 0, 4 );
-
 
     SDL_GL_SwapBuffers();
 
@@ -280,18 +274,55 @@ char status_buf[100];
     fprintf(stderr, "%s\n", status_buf); \
 }
 
+static int fullscreen = 0;
+static int scr_width = WIDTH;
+static int scr_height = HEIGHT;
+
 void init_gl () {
+
     glClearColor( 0.0f, 0.0f, 0.5f, 1.0f );
     glEnable( GL_TEXTURE_2D );
 
-    glOrtho(0.0f, (float)SCR_WIDTH, (float)SCR_HEIGHT, 0.0f, 0.0f, -2.0f);
+    glOrtho(0.0f, (float)scr_width, (float)scr_height, 0.0f, 0.0f, -2.0f);
+
+    glViewport(0, 0, scr_width, scr_height);
 
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 
+    glMatrixMode( GL_MODELVIEW );
+    glLoadIdentity();
+
     set_palette();
+}
+
+void init_screen () {
+    const SDL_VideoInfo *vid_info = SDL_GetVideoInfo();
+
+    int flags = SDL_OPENGL | SDL_HWPALETTE | SDL_RESIZABLE;
+
+    if (fullscreen) {
+      flags |= SDL_FULLSCREEN;
+    }
+
+    if (vid_info->hw_available) 
+        flags |= SDL_HWSURFACE;
+    else
+        flags |= SDL_SWSURFACE;
+
+    if (vid_info->blit_hw)
+        flags |= SDL_HWACCEL;
+
+    SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+    screen = SDL_SetVideoMode(scr_width, scr_height, 32, flags);
+    init_gl();
+
+    if (!screen) {
+        fprintf(stderr, "Couldn't get a screen.\n");
+        exit(1);
+    }
 
 
 }
@@ -302,26 +333,7 @@ int main (int argc, char *argv[]) {
         exit(1);
     }
 
-    const SDL_VideoInfo *vid_info = SDL_GetVideoInfo();
-
-    int flags = SDL_OPENGL | SDL_GL_DOUBLEBUFFER | SDL_HWPALETTE;
-    if (vid_info->hw_available) 
-        flags |= SDL_HWSURFACE;
-    else
-        flags |= SDL_SWSURFACE;
-
-    if (vid_info->blit_hw)
-        flags |= SDL_HWACCEL;
-
-    SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
-    screen = SDL_SetVideoMode(SCR_WIDTH, SCR_HEIGHT, 32, flags);
-
-    if (!screen) {
-        fprintf(stderr, "Couldn't get a screen.\n");
-        exit(1);
-    }
-
-    init_gl();
+    init_screen();
 
     init_data();
 
@@ -331,7 +343,7 @@ int main (int argc, char *argv[]) {
     int pause = 0;
     int brushsize = 32;
     int fps = 0, frames = 0;
-    time_t prev_sec;
+    int prev_ticks = SDL_GetTicks();
 
     while (1) {
         SDL_Event e;
@@ -342,7 +354,18 @@ int main (int argc, char *argv[]) {
 
 
         draw();
-#ifndef __WIN32__
+        if (fps) {
+          int ticks = SDL_GetTicks();
+          frames++;
+          if (ticks - prev_ticks >= 1000) {
+            status("Waves: %d FPS", (int)(frames * 1000 / (ticks - prev_ticks)));
+            prev_ticks = ticks;
+            frames = 0;
+          }
+        }
+
+
+#if 0
         if (fps) {
             struct timeval tv;
             frames++;
@@ -358,9 +381,15 @@ int main (int argc, char *argv[]) {
 
         while (SDL_PollEvent(&e)) {
             switch(e.type) {
+                case SDL_VIDEORESIZE:
+                    scr_width = e.resize.w;
+                    scr_height = e.resize.h;
+                    init_screen();
+                    break;
+
                 case SDL_MOUSEMOTION:
-                    x = e.motion.x * WIDTH / SCR_WIDTH;
-                    y = HEIGHT - e.motion.y * HEIGHT / SCR_HEIGHT;
+                    x = e.motion.x * WIDTH / scr_width;
+                    y = HEIGHT - e.motion.y * HEIGHT / scr_height;
                     break;
                 case SDL_MOUSEBUTTONDOWN:
                     down = e.button.button;
@@ -483,6 +512,11 @@ int main (int argc, char *argv[]) {
                             status("ColorOffset: %d", COLOROFFSET);
                             set_palette();
                             break;
+                        case SDLK_F9:
+                            fullscreen = 1 - fullscreen;
+                            init_screen();
+                            break;
+
 
                     }
                     break;
