@@ -28,10 +28,10 @@ struct Vertex {
 };
 
 struct Vertex quad_vertices[] = {
-	{ 0.0f,0.0f, -1.0f,-1.0f, 0.0f },
-	{ 1.0f,0.0f,  1.0f,-1.0f, 0.0f },
-	{ 1.0f,1.0f,  1.0f, 1.0f, 0.0f },
-	{ 0.0f,1.0f, -1.0f, 1.0f, 0.0f }
+    { 0.0f,0.0f, -1.0f,-1.0f, 0.0f },
+    { 1.0f,0.0f,  1.0f,-1.0f, 0.0f },
+    { 1.0f,1.0f,  1.0f, 1.0f, 0.0f },
+    { 0.0f,1.0f, -1.0f, 1.0f, 0.0f }
 };
 
 GLuint tex = 0;
@@ -41,28 +41,33 @@ const int TRANSFER = 8;
 int DRAG = 0;
 int RAIN = 0;
 int NONLINEAR = 0;
-int COLOROFFSET = 760;
+int COLOROFFSET = 0;
 int BRUSHTYPE = 1;
 int BRUSHSOFT = 1;
 int BRUSHADD = 1;
 int MODE = 1;
 int WRAP = 0;
 
+int *data, *v_x, *v_y,*old;
 
-
-int *data, *v_x, *v_y,*new;
+int row_up[HEIGHT], row_down[HEIGHT], col_left[WIDTH], col_right[WIDTH];
 
 SDL_Surface *screen;
+
+void set_nowrap();
 
 void init_data () {
     if ((data = malloc(WIDTH * HEIGHT * sizeof(*data))) == NULL) {
         perror("Allocating data");
         abort();
     }
-    if ((new = malloc(WIDTH * HEIGHT * sizeof(*data))) == NULL) {
+
+#ifndef TWOLOOP
+    if ((old = malloc(WIDTH * HEIGHT * sizeof(*data))) == NULL) {
         perror("Allocating data");
         abort();
     }
+#endif
 
     if ((v_x = malloc(WIDTH * HEIGHT * sizeof(*v_x))) == NULL) {
         perror("Allocating v_x");
@@ -81,6 +86,33 @@ void init_data () {
             v_y[y * WIDTH + x] = 0;
         }
     }
+
+    for (int i = 0 ; i < HEIGHT ; i++) {
+      row_up[i] = i - 1;
+      row_down[i] = i + 1;
+    }
+
+    for (int i = 0 ; i < WIDTH ; i++) {
+      col_left[i] = i - 1;
+      col_right[i] = i + 1;
+    }
+
+    set_nowrap();
+
+}
+
+void set_nowrap() {
+  row_up[0] = 1;
+  row_down[HEIGHT - 1] = HEIGHT - 2;
+  col_left[0] = 1;
+  col_right[WIDTH - 1 ] = WIDTH - 2;
+}
+
+void set_wrap() {
+  row_up[0] = HEIGHT - 1;
+  row_down[HEIGHT - 1] = 0;
+  col_left[0] = WIDTH - 1;
+  col_right[WIDTH - 1] = 0;
 }
 
 void update () {
@@ -90,19 +122,8 @@ void update () {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
 
-            int north, south, west, east;
-            if (WRAP) {
-              north = (y == 0 ? (HEIGHT - 1) * WIDTH + x : cur - WIDTH);
-              south = (y == HEIGHT - 1 ? x : cur + WIDTH);
-              west = (x == 0 ? WIDTH * y + WIDTH - 1 : cur - 1);
-              east = (x == WIDTH - 1 ? WIDTH * y : cur + 1);
-            } else {
-              north = (y == 0 ? cur + WIDTH : cur - WIDTH);
-              south = (y == HEIGHT - 1 ? cur - WIDTH : cur + WIDTH);
-              west = (x == 0 ? cur + 1 : cur - 1);
-              east = (x == WIDTH - 1 ? cur - 1 : cur + 1);
-            }
-
+            int north = row_up[y] * WIDTH + x, south = row_down[y] * WIDTH + x;
+            int west = y * WIDTH + col_left[x], east = y * WIDTH + col_right[x];
             if (NONLINEAR) {
                 if (data[west] > data[east]) {
                     v_x[cur] -= ((data[west] - data[east]) * (v_x[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
@@ -115,16 +136,21 @@ void update () {
                 } else {
                     v_y[cur] += ((data[north] - data[south]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
                 }
+                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
+                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT;
+                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
+                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
+
             } else {
                 v_x[cur] += (data[west] - data[east]) / TRANSFER;
-//                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
-//                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
+                //                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
+                //                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
                 //v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
 
 
                 v_y[cur] += (data[north] - data[south]) / TRANSFER;
-//                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
-//                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
+                //                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
+                //                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
                 //v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
             }
 
@@ -135,26 +161,54 @@ void update () {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
 
-            int north, south, west, east;
-            if (WRAP) {
-              north = (y == 0 ? (HEIGHT - 1) * WIDTH + x : cur - WIDTH);
-              south = (y == HEIGHT - 1 ? x : cur + WIDTH);
-              west = (x == 0 ? WIDTH * y + WIDTH - 1 : cur - 1);
-              east = (x == WIDTH - 1 ? WIDTH * y : cur + 1);
-            } else {
-              north = (y == 0 ? cur + WIDTH : cur - WIDTH);
-              south = (y == HEIGHT - 1 ? cur - WIDTH : cur + WIDTH);
-              west = (x == 0 ? cur + 1 : cur - 1);
-              east = (x == WIDTH - 1 ? cur - 1 : cur + 1);
-            }
-
+            int north = row_up[y] * WIDTH + x, south = row_down[y] * WIDTH + x;
+            int west = y * WIDTH + col_left[x], east = y * WIDTH + col_right[x];
             data[west] -= v_x[cur]; data[east] += v_x[cur];
             data[north] -= v_y[cur]; data[south] += v_y[cur];
         }
     }
 #else
 
-    memcpy(new, data, WIDTH * HEIGHT * sizeof(*data));
+    memcpy(old, data, WIDTH * HEIGHT * sizeof(*data));
+    for (int y = 0 ; y < HEIGHT ; y++) {
+        for (int x = 0 ; x < WIDTH ; x++) {
+            int cur = WIDTH * y + x;
+
+            int north = row_up[y] * WIDTH + x, south = row_down[y] * WIDTH + x;
+            int west = y * WIDTH + col_left[x], east = y * WIDTH + col_right[x];
+            if (NONLINEAR) {
+                if (old[west] > old[east]) {
+                    v_x[cur] -= ((old[west] - old[east]) * (v_x[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+                } else {
+                    v_x[cur] += ((old[west] - old[east]) * (v_x[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+                }
+
+                if (old[north] > old[south]) {
+                    v_y[cur] -= ((old[north] - old[south]) * (v_y[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+                } else {
+                    v_y[cur] += ((old[north] - old[south]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+                }
+            } else {
+                v_x[cur] += (old[west] - old[east]) / TRANSFER;
+                //                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
+                //                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
+                //v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
+
+
+                v_y[cur] += (old[north] - old[south]) / TRANSFER;
+                //                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
+                //                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
+                //v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
+            }
+
+            data[west] -= v_x[cur]; data[east] += v_x[cur];
+            data[north] -= v_y[cur]; data[south] += v_y[cur];
+
+        }
+    }
+
+#if 0
+    // Old oneloop
     for (int y = 0 ; y < HEIGHT ; y++) {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
@@ -178,9 +232,8 @@ void update () {
         }
     }
 
-    int *tmp = data;
-    data = new;
-    new = tmp;
+#endif
+
 #endif
 }
 
@@ -304,7 +357,7 @@ void init_screen () {
     int flags = SDL_OPENGL | SDL_HWPALETTE | SDL_RESIZABLE;
 
     if (fullscreen) {
-      flags |= SDL_FULLSCREEN;
+        flags |= SDL_FULLSCREEN;
     }
 
     if (vid_info->hw_available) 
@@ -355,13 +408,13 @@ int main (int argc, char *argv[]) {
 
         draw();
         if (fps) {
-          int ticks = SDL_GetTicks();
-          frames++;
-          if (ticks - prev_ticks >= 1000) {
-            status("Waves: %d FPS", (int)(frames * 1000 / (ticks - prev_ticks)));
-            prev_ticks = ticks;
-            frames = 0;
-          }
+            int ticks = SDL_GetTicks();
+            frames++;
+            if (ticks - prev_ticks >= 1000) {
+                status("Waves: %d FPS", (int)(frames * 1000 / (ticks - prev_ticks)));
+                prev_ticks = ticks;
+                frames = 0;
+            }
         }
 
 
@@ -438,6 +491,11 @@ int main (int argc, char *argv[]) {
                             break;
                         case SDLK_w:
                             WRAP = 1 - WRAP;
+                            if (WRAP) {
+                              set_wrap();
+                            } else {
+                              set_nowrap();
+                            }
                             status("Wrap: %d", WRAP);
                             break;
                         case SDLK_i:
@@ -468,10 +526,9 @@ int main (int argc, char *argv[]) {
                         case SDLK_COMMA:
                             clear_vel();
                             break;
-                        case SDLK_q:
-                            return(0);
-                            break;
-                        case SDLK_ESCAPE:
+                        case SDLK_q: case SDLK_ESCAPE:
+                            fullscreen = 0;
+                            init_screen();
                             return(0);
                             break;
                         case SDLK_LEFTBRACKET:
@@ -508,7 +565,7 @@ int main (int argc, char *argv[]) {
                             break;
                         case SDLK_F4:
                             COLOROFFSET += 8;
-                            if (COLOROFFSET>1300) COLOROFFSET=1300;
+                            if (COLOROFFSET > num_colors - 256) COLOROFFSET = num_colors - 256;
                             status("ColorOffset: %d", COLOROFFSET);
                             set_palette();
                             break;
@@ -521,6 +578,8 @@ int main (int argc, char *argv[]) {
                     }
                     break;
                 case SDL_QUIT:
+                    fullscreen = 0;
+                    init_screen();
                     return(0);
                     break;
             }
@@ -593,7 +652,7 @@ int main (int argc, char *argv[]) {
 
 #ifdef __WIN32__
 int WINAPI WinMain (HINSTANCE hThisInstance, HINSTANCE hPrevInstance, LPSTR lpszArgument,
-                    int nFunsterStil) {
-                    return main(0, NULL);
+        int nFunsterStil) {
+    return main(0, NULL);
 }
 #endif

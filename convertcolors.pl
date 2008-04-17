@@ -1,7 +1,8 @@
 #!/usr/bin/perl 
 use GD;
-$image = GD::Image->new("colors.png");
+$image = GD::Image->new($ARGV[0]);
 $width=  $image->width ;
+print "int num_colors = $width;\n";
 print "GLfloat colors[$width][3] = {\n";
 for ($w=0;$w<$width;$w++)
 {
