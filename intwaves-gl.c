@@ -16,10 +16,8 @@
 #include "colors.i"
 
 
-#define WIDTH (640)
-#define HEIGHT (360)
-
-#define TWOLOOP 1
+#define WIDTH (1280)
+#define HEIGHT (720)
 
 
 struct Vertex {
@@ -115,10 +113,10 @@ void set_wrap() {
   col_right[WIDTH - 1] = 0;
 }
 
-void update () {
+void update_slice (int firstrow, int lastrow) {
 
 #if TWOLOOP
-    for (int y = 0 ; y < HEIGHT ; y++) {
+    for (int y = firstrow ; y < lastrow ; y++) {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
 
@@ -145,19 +143,19 @@ void update () {
                 v_x[cur] += (data[west] - data[east]) / TRANSFER;
                 //                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
                 //                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
-                //v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
+                v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
 
 
                 v_y[cur] += (data[north] - data[south]) / TRANSFER;
                 //                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
                 //                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
-                //v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
+                v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
             }
 
         }
     }
 
-    for (int y = 0 ; y < HEIGHT ; y++) {
+    for (int y = firstrow ; y < lastrow ; y++) {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
 
@@ -167,9 +165,9 @@ void update () {
             data[north] -= v_y[cur]; data[south] += v_y[cur];
         }
     }
+
 #else
 
-    memcpy(old, data, WIDTH * HEIGHT * sizeof(*data));
     for (int y = 0 ; y < HEIGHT ; y++) {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
@@ -190,15 +188,7 @@ void update () {
                 }
             } else {
                 v_x[cur] += (old[west] - old[east]) / TRANSFER;
-                //                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
-                //                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
-                //v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
-
-
                 v_y[cur] += (old[north] - old[south]) / TRANSFER;
-                //                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
-                //                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
-                //v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
             }
 
             data[west] -= v_x[cur]; data[east] += v_x[cur];
@@ -207,34 +197,15 @@ void update () {
         }
     }
 
-#if 0
-    // Old oneloop
-    for (int y = 0 ; y < HEIGHT ; y++) {
-        for (int x = 0 ; x < WIDTH ; x++) {
-            int cur = WIDTH * y + x;
-            int north = ((y == 0) ? cur + WIDTH : cur - WIDTH);
-            int south = ((y == HEIGHT - 1) ? cur - WIDTH : cur + WIDTH);
-            int west = ((x == 0) ? cur + 1 : cur - 1);
-            int east = ((x == WIDTH - 1) ? cur - 1 : cur + 1);
+#endif
+}
 
-            v_x[cur] += (data[west] - data[east]) / TRANSFER;
-            //v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
-            // if (v_x[cur] < 0) v_x[cur] = 0; 
-            // if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
-            new[west] -= v_x[cur]; new[east] += v_x[cur];
-
-            v_y[cur] += (data[north] - data[south]) / TRANSFER;
-            //v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
-
-            // if (v_y[cur] < 0 ) v_y[cur] = 0;
-            // if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
-            new[north] -= v_y[cur]; new[south] += v_y[cur];
-        }
-    }
-
+void update () {
+#if ! TWOLOOP
+  memcpy(old, data, WIDTH * HEIGHT * sizeof(*data));
 #endif
 
-#endif
+  update_slice(0, HEIGHT);
 }
 
 void set_palette() {
@@ -416,20 +387,6 @@ int main (int argc, char *argv[]) {
                 frames = 0;
             }
         }
-
-
-#if 0
-        if (fps) {
-            struct timeval tv;
-            frames++;
-            gettimeofday(&tv, NULL);
-            if (tv.tv_sec != prev_sec) {
-                status("Waves: %d FPS", frames);
-                prev_sec = tv.tv_sec;
-                frames = 0;
-            }
-        }
-#endif
 
 
         while (SDL_PollEvent(&e)) {

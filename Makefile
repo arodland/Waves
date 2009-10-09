@@ -10,3 +10,6 @@ CFLAGS = $(OPTIMIZE) $(WARN) $(DEBUG)
 
 $(PROG): $(PROG).c colors.i Makefile
 	$(CC) $(CFLAGS) $< $(LIBS) -o $@
+
+antiburnin: antiburnin.c Makefile
+	$(CC) $(CFLAGS) $< $(LIBS) -o $@
