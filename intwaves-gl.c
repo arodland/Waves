@@ -153,24 +153,14 @@ static inline void update_v_slice (int firstrow, int lastrow) {
         } else {
           v_y[cur] += ((data[north] - data[south]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
         }
-        if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
-        if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT;
-        if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
-        if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
-
       } else {
         v_x[cur] += (data[west] - data[east]) / TRANSFER;
-        //                if (v_x[cur] < -VEL_LIMIT) v_x[cur] = -VEL_LIMIT; 
-        //                if (v_x[cur] > VEL_LIMIT) v_x[cur] = VEL_LIMIT;
-        v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
-
-
         v_y[cur] += (data[north] - data[south]) / TRANSFER;
-        //                if (v_y[cur] < -VEL_LIMIT) v_y[cur] = -VEL_LIMIT;
-        //                if (v_y[cur] > VEL_LIMIT) v_y[cur] = VEL_LIMIT;
-        v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
+        if (DRAG) {
+          v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
+          v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
+        }
       }
-
     }
   }
 }
