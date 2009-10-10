@@ -30,9 +30,8 @@ struct Vertex quad_vertices[] = {
 };
 
 struct Thread {
-  SDL_Thread *v_thread, *h_thread;
-  SDL_sem *v_ok, *h_ok;
-  SDL_sem *v_done, *h_done;
+  SDL_Thread *thread;
+  SDL_sem *ok, *done;
   int slice;
 };
 
@@ -62,12 +61,16 @@ struct Thread *threads;
 
 void set_nowrap();
 
-int update_v_thread(void *);
-int update_h_thread(void *);
+int update_thread(void *);
 
 void init_data () {
     if ((data = malloc(WIDTH * HEIGHT * sizeof(*data))) == NULL) {
         perror("Allocating data");
+        abort();
+    }
+
+    if ((old = malloc(WIDTH * HEIGHT * sizeof(*old))) == NULL) {
+        perror("Allocating old");
         abort();
     }
 
@@ -108,13 +111,10 @@ void init_data () {
       }
 
       for (int i = 0 ; i < THREADS ; i++) {
-        threads[i].h_ok = SDL_CreateSemaphore(0);
-        threads[i].v_ok = SDL_CreateSemaphore(0);
-        threads[i].h_done = SDL_CreateSemaphore(0);
-        threads[i].v_done = SDL_CreateSemaphore(0);
+        threads[i].ok = SDL_CreateSemaphore(0);
+        threads[i].done = SDL_CreateSemaphore(0);
         threads[i].slice = i;
-        threads[i].v_thread = SDL_CreateThread(update_v_thread, &threads[i]);
-        threads[i].h_thread = SDL_CreateThread(update_h_thread, &threads[i]);
+        threads[i].thread = SDL_CreateThread(update_thread, &threads[i]);
       }
     }
 
@@ -134,7 +134,7 @@ void set_wrap() {
   col_right[WIDTH - 1] = 0;
 }
 
-static inline void update_v_slice (int firstrow, int lastrow) {
+static inline void update_slice (int firstrow, int lastrow) {
   for (int y = firstrow ; y < lastrow ; y++) {
     for (int x = 0 ; x < WIDTH ; x++) {
       int cur = WIDTH * y + x;
@@ -142,86 +142,54 @@ static inline void update_v_slice (int firstrow, int lastrow) {
       int north = row_up[y] * WIDTH + x, south = row_down[y] * WIDTH + x;
       int west = y * WIDTH + col_left[x], east = y * WIDTH + col_right[x];
       if (NONLINEAR) {
-        if (data[west] > data[east]) {
-          v_x[cur] -= ((data[west] - data[east]) * (v_x[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+        if (old[west] > old[east]) {
+          v_x[cur] -= ((old[west] - old[east]) * (v_x[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
         } else {
-          v_x[cur] += ((data[west] - data[east]) * (v_x[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+          v_x[cur] += ((old[west] - old[east]) * (v_x[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
         }
 
-        if (data[north] > data[south]) {
-          v_y[cur] -= ((data[north] - data[south]) * (v_y[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+        if (old[north] > old[south]) {
+          v_y[cur] -= ((old[north] - old[south]) * (v_y[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
         } else {
-          v_y[cur] += ((data[north] - data[south]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
+          v_y[cur] += ((old[north] - old[south]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
         }
       } else {
-        v_x[cur] += (data[west] - data[east]) / TRANSFER;
-        v_y[cur] += (data[north] - data[south]) / TRANSFER;
-        if (DRAG) {
-          v_x[cur] = (v_x[cur] * (1024 - DRAG) / 1024);
-          v_y[cur] = (v_y[cur] * (1024 - DRAG) / 1024);
-        }
+        v_x[cur] += (old[west] - old[east]) / TRANSFER;
+        v_y[cur] += (old[north] - old[south]) / TRANSFER;
       }
-    }
-  }
-}
 
-static inline void update_h_slice (int firstrow, int lastrow) {
-  for (int y = firstrow ; y < lastrow ; y++) {
-    for (int x = 0 ; x < WIDTH ; x++) {
-      int cur = WIDTH * y + x;
-
-      int north = row_up[y] * WIDTH + x, south = row_down[y] * WIDTH + x;
-      int west = y * WIDTH + col_left[x], east = y * WIDTH + col_right[x];
       data[west] -= v_x[cur]; data[east] += v_x[cur];
       data[north] -= v_y[cur]; data[south] += v_y[cur];
+
     }
   }
 }
 
-int update_v_thread (void *data) {
+int update_thread (void *data) {
   struct Thread *thread = (struct Thread *)data;
   int firstrow = (HEIGHT * thread->slice) / THREADS;
   int lastrow = (HEIGHT * (thread->slice + 1)) / THREADS;
 
-  printf("update v slice %d first %d last %d\n", thread->slice, firstrow, lastrow);
+  printf("update slice %d first %d last %d\n", thread->slice, firstrow, lastrow);
 
   while (1) {
-    SDL_SemWait(thread->v_ok);
-    update_v_slice(firstrow, lastrow);
-    SDL_SemPost(thread->v_done);
+    SDL_SemWait(thread->ok);
+    update_slice(firstrow, lastrow);
+    SDL_SemPost(thread->done);
   }
   return 0;
 }
-
-int update_h_thread (void *data) {
-  struct Thread *thread = (struct Thread *)data;
-  int firstrow = (HEIGHT * thread->slice) / THREADS;
-  int lastrow = (HEIGHT * (thread->slice + 1)) / THREADS;
-
-  printf("update h slice %d first %d last %d\n", thread->slice, firstrow, lastrow);
-  
-  while (1) {
-    SDL_SemWait(thread->h_ok);
-    update_h_slice(firstrow, lastrow);
-    SDL_SemPost(thread->h_done);
-  }
-  return 0;
-}
-
 
 void update () {
+  memcpy(old, data, WIDTH * HEIGHT * sizeof(*data));
+
   if (THREADS) {
     for (int i = 0 ; i < THREADS ; i++)
-      SDL_SemPost(threads[i].v_ok);
+      SDL_SemPost(threads[i].ok);
     for (int i = 0 ; i < THREADS ; i++)
-      SDL_SemWait(threads[i].v_done);
-    for (int i = 0 ; i < THREADS ; i++)
-      SDL_SemPost(threads[i].h_ok);
-    for (int i = 0 ; i < THREADS ; i++)
-      SDL_SemWait(threads[i].h_done);
+      SDL_SemWait(threads[i].done);
   } else {
-    update_v_slice(0, HEIGHT);
-    update_h_slice(0, HEIGHT);
+    update_slice(0, HEIGHT);
   }
 }
 
