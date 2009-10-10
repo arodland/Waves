@@ -16,8 +16,8 @@
 #include "colors.i"
 
 
-#define WIDTH (1280)
-#define HEIGHT (720)
+#define WIDTH (640)
+#define HEIGHT (480)
 
 
 struct Vertex {
@@ -368,14 +368,15 @@ int main (int argc, char *argv[]) {
     int brushsize = 32;
     int fps = 0, frames = 0;
     int prev_ticks = SDL_GetTicks();
+    int accel = 1;
 
     while (1) {
         SDL_Event e;
 
         if (!pause) {
+          for (int iter = 0 ; iter < accel ; iter++)
             update();
         }
-
 
         draw();
         if (fps) {
@@ -513,7 +514,6 @@ int main (int argc, char *argv[]) {
                             RAIN++;
                             status("Rain: %d", RAIN);
                             break;
-
                         case SDLK_F3:
                             COLOROFFSET -=8 ;
                             if (COLOROFFSET<0) COLOROFFSET=0;
@@ -530,8 +530,15 @@ int main (int argc, char *argv[]) {
                             fullscreen = 1 - fullscreen;
                             init_screen();
                             break;
-
-
+                        case SDLK_PAGEUP:
+                            accel--;
+                            if (accel < 1) accel = 1;
+                            status("Accel: %d", accel);
+                            break;
+                        case SDLK_PAGEDOWN:
+                            accel++;
+                            status("Accel: %d", accel);
+                            break;
                     }
                     break;
                 case SDL_QUIT:
