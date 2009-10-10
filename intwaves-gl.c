@@ -15,10 +15,8 @@
 
 #include "colors.i"
 
-
 #define WIDTH (640)
 #define HEIGHT (480)
-
 
 struct Vertex {
     float tu, tv;
@@ -59,13 +57,6 @@ void init_data () {
         perror("Allocating data");
         abort();
     }
-
-#ifndef TWOLOOP
-    if ((old = malloc(WIDTH * HEIGHT * sizeof(*data))) == NULL) {
-        perror("Allocating data");
-        abort();
-    }
-#endif
 
     if ((v_x = malloc(WIDTH * HEIGHT * sizeof(*v_x))) == NULL) {
         perror("Allocating v_x");
@@ -114,8 +105,6 @@ void set_wrap() {
 }
 
 void update_slice (int firstrow, int lastrow) {
-
-#if TWOLOOP
     for (int y = firstrow ; y < lastrow ; y++) {
         for (int x = 0 ; x < WIDTH ; x++) {
             int cur = WIDTH * y + x;
@@ -165,46 +154,9 @@ void update_slice (int firstrow, int lastrow) {
             data[north] -= v_y[cur]; data[south] += v_y[cur];
         }
     }
-
-#else
-
-    for (int y = 0 ; y < HEIGHT ; y++) {
-        for (int x = 0 ; x < WIDTH ; x++) {
-            int cur = WIDTH * y + x;
-
-            int north = row_up[y] * WIDTH + x, south = row_down[y] * WIDTH + x;
-            int west = y * WIDTH + col_left[x], east = y * WIDTH + col_right[x];
-            if (NONLINEAR) {
-                if (old[west] > old[east]) {
-                    v_x[cur] -= ((old[west] - old[east]) * (v_x[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
-                } else {
-                    v_x[cur] += ((old[west] - old[east]) * (v_x[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
-                }
-
-                if (old[north] > old[south]) {
-                    v_y[cur] -= ((old[north] - old[south]) * (v_y[cur] - VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
-                } else {
-                    v_y[cur] += ((old[north] - old[south]) * (v_y[cur] + VEL_LIMIT) / VEL_LIMIT) / TRANSFER;
-                }
-            } else {
-                v_x[cur] += (old[west] - old[east]) / TRANSFER;
-                v_y[cur] += (old[north] - old[south]) / TRANSFER;
-            }
-
-            data[west] -= v_x[cur]; data[east] += v_x[cur];
-            data[north] -= v_y[cur]; data[south] += v_y[cur];
-
-        }
-    }
-
-#endif
 }
 
 void update () {
-#if ! TWOLOOP
-  memcpy(old, data, WIDTH * HEIGHT * sizeof(*data));
-#endif
-
   update_slice(0, HEIGHT);
 }
 
@@ -212,9 +164,6 @@ void set_palette() {
     GLfloat red[256], green[256], blue[256];
 
     for (int i = 0; i < 256 ; i++) {
-        // red[i] = (float)i / 256;
-        // green[i] = (float)i / 256;
-        // blue[i] = 0.5 + (float)i / 512;
         red[i] = colors[i+COLOROFFSET][0];
         green[i] = colors[i+COLOROFFSET][1];
         blue[i] = colors[i+COLOROFFSET][2];
