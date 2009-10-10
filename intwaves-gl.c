@@ -5,13 +5,11 @@
 #include <time.h>
 
 #ifdef __WIN32__
-#include <SDL.h>
-#include <SDL_opengl.h>
 #include <windows.h>
-#else
+#endif
+
 #include <SDL/SDL.h>
 #include <SDL/SDL_opengl.h>
-#endif
 
 #include "colors.i"
 
